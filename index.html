@@ -147,63 +147,43 @@
 </script>
 
 
-<script>
-(()=> {
- const c=document.getElementById('cityCanvas'); if(!c)return;
- const x=c.getContext('2d'),scoreEl=document.getElementById('cityScore'),hitsEl=document.getElementById('cityHits'),status=document.getElementById('cityStatus'),btn=document.getElementById('cityStart');
- let car=0,cars=[],debris=[],score=0,hits=0,run=false,ended=false,last=0,spawn=0,speed=4,brake=false,keys={l:false,r:false},stripes=0,shake=0;
- const lanes=[285,400,515];
- function poly(p,color,stroke){x.beginPath();x.moveTo(p[0][0],p[0][1]);p.slice(1).forEach(q=>x.lineTo(q[0],q[1]));x.closePath();x.fillStyle=color;x.fill();if(stroke){x.strokeStyle=stroke;x.lineWidth=2;x.stroke()}}
- function city(){
-  let g=x.createLinearGradient(0,0,0,460);g.addColorStop(0,'#8bc5dd');g.addColorStop(.48,'#d3d6c9');g.addColorStop(.49,'#303c46');g.addColorStop(1,'#101923');x.fillStyle=g;x.fillRect(0,0,800,460);
-  for(let i=0;i<9;i++){let bx=i*100-((score*.7)%100),h=80+(i*37%100);x.fillStyle=i%2?'#526b79':'#394f62';x.fillRect(bx,130-h*.35,76,h+55);x.fillStyle='#f7d98a';for(let wy=145-h*.35;wy<170;wy+=19)for(let wx=bx+10;wx<bx+68;wx+=19)x.fillRect(wx,wy,8,10)}
-  x.fillStyle='#69737a';x.fillRect(0,275,800,185);
-  x.fillStyle='#d4d7d3';x.fillRect(0,270,800,9);x.fillRect(0,450,800,10);
-  x.fillStyle='#252d35';x.fillRect(250,0,350,460);
-  x.fillStyle='#f4d35e';x.fillRect(245,0,5,460);x.fillRect(600,0,5,460);
-  x.strokeStyle='#e8e7d9';x.lineWidth=5;x.setLineDash([32,30]);x.lineDashOffset=-stripes;x.beginPath();x.moveTo(366,0);x.lineTo(366,460);x.moveTo(484,0);x.lineTo(484,460);x.stroke();x.setLineDash([]);
-  x.fillStyle='#111';x.fillRect(20,300,190,18);x.fillRect(620,300,160,18);
- }
- function drawCar(cx,cy,color,scale=1,damaged=false){
-  x.save();x.translate(cx,cy);x.scale(scale,scale);
-  x.fillStyle='#080d12';x.fillRect(-37,-42,12,29);x.fillRect(25,-42,12,29);x.fillRect(-37,19,12,29);x.fillRect(25,19,12,29);
-  x.shadowColor=color;x.shadowBlur=damaged?3:12;
-  let body=damaged?'#777':color;
-  poly([[-29,-52],[29,-52],[36,-30],[36,35],[25,51],[-25,51],[-36,35],[-36,-30]],body,'#d9e8f2');
-  poly([[-23,-32],[23,-32],[18,-5],[-18,-5]],'#9bd8e9','#e6fbff');
-  poly([[-18,5],[18,5],[23,29],[-23,29]],'#1a3444','#93c6d6');
-  x.fillStyle='#fff3b0';x.fillRect(-29,-48,12,6);x.fillRect(17,-48,12,6);
-  x.fillStyle='#ff4141';x.fillRect(-29,42,11,5);x.fillRect(18,42,11,5);
-  if(damaged){x.strokeStyle='#292929';x.lineWidth=3;x.beginPath();x.moveTo(-20,-20);x.lineTo(5,4);x.lineTo(-9,20);x.stroke();x.fillStyle='#343434';x.fillRect(-34,-10,10,18)}
-  x.restore();
- }
- function draw(){
-  x.save();if(shake>0){x.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=.85}
-  city();
-  cars.forEach(o=>drawCar(o.x,o.y,o.color,o.scale,o.damaged));
-  debris.forEach(d=>{x.save();x.translate(d.x,d.y);x.rotate(d.a);x.fillStyle=d.color;x.fillRect(-d.s/2,-d.s/2,d.s,d.s);x.restore()});
-  drawCar(lanes[1]+car*115,365,'#12a9ed',1,false);
-  if(!run){x.fillStyle='#071522d9';x.fillRect(190,170,420,110);x.textAlign='center';x.fillStyle='white';x.font='bold 30px system-ui';x.fillText(ended?'انتهت الجولة!':'مدينة التصادم',400,215);x.font='18px system-ui';x.fillText(ended?'اضغط ابدأ للعب من جديد':'اضغط ابدأ وانطلق في المدينة',400,248)}
-  x.restore();
- }
- function reset(){car=0;cars=[];debris=[];score=0;hits=0;speed=4;spawn=0;run=true;ended=false;last=0;scoreEl.textContent=0;hitsEl.textContent=0;status.textContent='انطلق!';btn.textContent='إعادة اللعب';requestAnimationFrame(loop)}
- function loop(t){if(!run){draw();return}let dt=Math.min((t-last)/16||1,2);last=t;
-  if(keys.l)car=Math.max(-1,car-.09*dt);if(keys.r)car=Math.min(1,car+.09*dt);
-  let v=brake?1.5:speed;score+=Math.round(v*dt);scoreEl.textContent=score;stripes+=v*dt*2;
-  spawn+=dt;if(spawn>Math.max(24,58-score/130)){spawn=0;let lane=Math.floor(Math.random()*3);cars.push({lane,x:lanes[lane],y:-70,scale:.65,color:['#ef4b4b','#f0b33d','#8b70df','#36b879'][Math.floor(Math.random()*4)],damaged:false})}
-  for(let i=cars.length-1;i>=0;i--){let o=cars[i];o.y+=v*dt*(1.3-o.scale*.25);
-   let px=lanes[1]+car*115;
-   if(!o.damaged&&o.y>300&&o.y<415&&Math.abs(o.x-px)<58){o.damaged=true;hits++;hitsEl.textContent=hits;shake=14;for(let j=0;j<18;j++)debris.push({x:o.x,y:o.y,a:Math.random()*6.2,s:3+Math.random()*8,color:['#ffbd45','#e8edf2','#e74b4b'][j%3],vx:(Math.random()-.5)*8,vy:(Math.random()-.5)*8,life:40});status.textContent='💥 تحطيم!';o.y=500}
-   if(o.y>500)cars.splice(i,1);
-  }
-  debris.forEach(d=>{d.x+=d.vx;d.y+=d.vy;d.vy+=.12;d.life--});debris=debris.filter(d=>d.life>0);
-  draw();requestAnimationFrame(loop)
- }
- function hold(id,k){let b=document.getElementById(id);b.addEventListener('pointerdown',e=>{e.preventDefault();keys[k]=true});['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>keys[k]=false))}
- hold('cityLeft','l');hold('cityRight','r');
- addEventListener('keydown',e=>{if(e.key==='ArrowLeft')keys.l=true;if(e.key==='ArrowRight')keys.r=true;if(e.code==='Space'){brake=true;e.preventDefault()}});
- addEventListener('keyup',e=>{if(e.key==='ArrowLeft')keys.l=false;if(e.key==='ArrowRight')keys.r=false;if(e.code==='Space')brake=false});
- btn.addEventListener('click',reset);draw();
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+(()=>{
+ const canvas=document.getElementById('cityCanvas'); if(!canvas)return;
+ const scoreEl=document.getElementById('cityScore'),hitsEl=document.getElementById('cityHits'),status=document.getElementById('cityStatus'),btn=document.getElementById('cityStart');
+ const scene=new THREE.Scene();scene.background=new THREE.Color(0x91c8e4);scene.fog=new THREE.Fog(0x91c8e4,45,190);
+ const camera=new THREE.PerspectiveCamera(62,800/460,.1,250);camera.position.set(0,7,13);camera.lookAt(0,0,-12);
+ const renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(800,460,false);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+ scene.add(new THREE.HemisphereLight(0xd9f4ff,0x38404b,2));
+ const sun=new THREE.DirectionalLight(0xffffff,2.3);sun.position.set(-8,18,10);sun.castShadow=true;scene.add(sun);
+ const mat=(color,roughness=.8)=>new THREE.MeshStandardMaterial({color,roughness});
+ const road=new THREE.Mesh(new THREE.PlaneGeometry(15,240),mat(0x303943));road.rotation.x=-Math.PI/2;road.position.set(0,-.06,-75);road.receiveShadow=true;scene.add(road);
+ const ground=new THREE.Mesh(new THREE.PlaneGeometry(180,240),mat(0x667b65));ground.rotation.x=-Math.PI/2;ground.position.set(0,-.18,-75);scene.add(ground);
+ const laneMarks=[];for(let z=12;z>-190;z-=9){for(const x of [-2.5,2.5]){const m=new THREE.Mesh(new THREE.BoxGeometry(.13,.025,4),mat(0xf5f0d7));m.position.set(x,.01,z);scene.add(m);laneMarks.push(m)}}
+ const buildings=[];for(let side of [-1,1])for(let i=0;i<20;i++){const w=3+Math.random()*4,h=5+Math.random()*17,d=4+Math.random()*7;const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat([0x526b7b,0x687d8c,0x465b70,0x8a9695][i%4]));b.position.set(side*(11+Math.random()*9),h/2-0.1,-i*11-8);b.castShadow=true;b.receiveShadow=true;scene.add(b);buildings.push(b);
+ for(let y=2;y<h-1;y+=2.7)for(let xx=-w/2+.7;xx<w/2-.4;xx+=1.5){const win=new THREE.Mesh(new THREE.BoxGeometry(.65,.9,.06),mat(0xf3d994));win.position.set(b.position.x+xx,y,b.position.z+d/2+.04);scene.add(win)}}
+ function makeCar(color){const g=new THREE.Group();const body=new THREE.Mesh(new THREE.BoxGeometry(1.65,.62,3),mat(color,.35));body.position.y=.72;body.castShadow=true;g.add(body);const cabin=new THREE.Mesh(new THREE.BoxGeometry(1.25,.7,1.45),mat(0x9bd4e8,.25));cabin.position.set(0,1.28,-.12);cabin.castShadow=true;g.add(cabin);for(const x of [-.86,.86])for(const z of [-.95,.95]){const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.34,.34,.2,16),mat(0x11151a));wheel.rotation.z=Math.PI/2;wheel.position.set(x,.42,z);g.add(wheel)}for(const x of [-.53,.53]){const lamp=new THREE.Mesh(new THREE.BoxGeometry(.25,.16,.06),mat(0xffefb0));lamp.position.set(x,.76,1.53);g.add(lamp)}scene.add(g);return g}
+ const player=makeCar(0x08a9ef);player.position.set(0,0,5);
+ const traffic=[];const colors=[0xe84d4d,0xf2b53f,0x8c70d9,0x36ae78,0xe5e8ed];
+ let lane=0,score=0,hits=0,running=false,ended=false,last=0,spawn=0,speed=22,brake=false;
+ function reset(){traffic.forEach(o=>scene.remove(o.mesh));traffic.length=0;lane=0;score=0;hits=0;speed=22;spawn=0;scoreEl.textContent='0';hitsEl.textContent='0';status.textContent='انطلق في المدينة ثلاثية الأبعاد!';btn.textContent='إعادة اللعب';ended=false;running=true;last=0;requestAnimationFrame(loop)}
+ function spawnCar(){const l=[-3.2,0,3.2][Math.floor(Math.random()*3)];const mesh=makeCar(colors[Math.floor(Math.random()*colors.length)]);mesh.position.set(l,0,-105);traffic.push({mesh,lane:l,hit:false})}
+ function crash(o){o.hit=true;hits++;hitsEl.textContent=hits;status.textContent='💥 اصطدام!';o.mesh.rotation.z=(Math.random()-.5)*.7;o.mesh.position.y=.35;const burst=new THREE.Mesh(new THREE.IcosahedronGeometry(.8,0),mat(0xff8b35));burst.position.copy(o.mesh.position);scene.add(burst);setTimeout(()=>scene.remove(burst),450)}
+ function loop(t){if(!running){renderer.render(scene,camera);return}const dt=Math.min((t-last)/1000||.016,.05);last=t;const target=[-3.2,0,3.2][lane];player.position.x+=(target-player.position.x)*Math.min(1,dt*9);player.position.z=brake?7:5;
+ const v=brake?9:speed;score+=v*dt;scoreEl.textContent=Math.floor(score);
+ spawn+=dt;if(spawn>1.35){spawn=0;spawnCar()}
+ for(let i=traffic.length-1;i>=0;i--){const o=traffic[i];o.mesh.position.z+=v*dt*1.15;if(!o.hit&&Math.abs(o.mesh.position.z-player.position.z)<2.2&&Math.abs(o.mesh.position.x-player.position.x)<1.45){crash(o)}if(o.mesh.position.z>18){scene.remove(o.mesh);traffic.splice(i,1)}}
+ laneMarks.forEach(m=>{m.position.z+=v*dt;if(m.position.z>18)m.position.z-=207});
+ buildings.forEach(b=>{b.position.z+=v*dt*.55;if(b.position.z>22)b.position.z-=220});
+ camera.position.x+=(player.position.x*.22-camera.position.x)*dt*2;camera.lookAt(player.position.x*.18,1,-13);
+ renderer.render(scene,camera);requestAnimationFrame(loop)}
+ function move(dir){lane=Math.max(0,Math.min(2,lane+dir))}
+ document.getElementById('cityLeft').addEventListener('click',()=>move(-1));document.getElementById('cityRight').addEventListener('click',()=>move(1));
+ addEventListener('keydown',e=>{if(e.key==='ArrowLeft'){move(-1);e.preventDefault()}if(e.key==='ArrowRight'){move(1);e.preventDefault()}if(e.code==='Space'){brake=true;e.preventDefault()}});
+ addEventListener('keyup',e=>{if(e.code==='Space')brake=false});btn.addEventListener('click',reset);
+ addEventListener('resize',()=>{const w=canvas.clientWidth||800;renderer.setSize(w,w*460/800,false);camera.aspect=w/(w*460/800);camera.updateProjectionMatrix()});
+ renderer.render(scene,camera);
 })();
 </script>
 
