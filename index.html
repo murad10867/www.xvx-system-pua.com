@@ -25,7 +25,7 @@
 
     .game-panel{background:linear-gradient(145deg,#0c1b31,#07101e);border:1px solid #1b4b78;border-radius:22px;padding:20px}
     .game-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;color:#b9d8f5}
-    #gameCanvas{display:block;width:100%;max-width:720px;height:auto;margin:auto;background:#030914;border:1px solid #16416c;border-radius:14px;touch-action:none}
+    #gameCanvas{display:block;width:100%;max-width:720px;height:auto;margin:auto;background:linear-gradient(#061b36,#020711);border:1px solid #16416c;border-radius:14px;touch-action:none}
     .game-controls{display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
     .game-controls button{min-width:58px;padding:10px 16px;border:1px solid #1b6ba6;border-radius:12px;background:#0b2b4b;color:white;font-size:1.15rem;font-weight:800;touch-action: manipulation}
     .game-controls button:active{background:#087dca}.game-help{text-align:center;color:#9fb2ca;font-size:.9rem;margin:12px 0 0}
@@ -59,7 +59,7 @@
   </div></section>
 
   <section id="game"><div class="wrap">
-    <div class="section-head"><div class="kicker">XVX ARCADE</div><h2>لعبة صائد النجوم ⭐</h2><p>حرّك المركبة واجمع النجوم الذهبية، وابتعد عن النيازك الحمراء!</p></div>
+    <div class="section-head"><div class="kicker">XVX ARCADE</div><h2>لعبة صائد النجوم ⭐</h2><p>عِش تجربة ثلاثية الأبعاد! حرّك المركبة واجمع النجوم وابتعد عن النيازك.</p></div>
     <div class="game-panel">
       <div class="game-top"><span>النقاط: <strong id="gameScore">0</strong></span><span>أفضل نتيجة: <strong id="gameBest">0</strong></span><span id="gameStatus">جاهز؟ اضغط ابدأ!</span></div>
       <canvas id="gameCanvas" width="720" height="360" aria-label="لعبة صائد النجوم"></canvas>
@@ -68,7 +68,7 @@
         <button type="button" id="gameStart">ابدأ اللعبة</button>
         <button type="button" id="gameRight" aria-label="يمين">▶</button>
       </div>
-      <p class="game-help">استخدم السهمين ← → أو الأزرار. اجمع ⭐ وتجنب ☄️</p>
+      <p class="game-help">منظور 3D فضائي • استخدم السهمين ← → أو الأزرار للتحرك</p>
     </div>
   </div></section>
 
@@ -79,25 +79,51 @@
 <footer><div class="wrap foot"><span class="ltr">© 2026 XVX System PUA</span><span class="ltr">www.xvx-system-pua.com</span></div></footer>
 
 <script>
-(()=>{
+(()=> {
  const canvas=document.getElementById('gameCanvas'),ctx=canvas.getContext('2d');
  const scoreEl=document.getElementById('gameScore'),bestEl=document.getElementById('gameBest'),statusEl=document.getElementById('gameStatus'),startBtn=document.getElementById('gameStart');
- let player={x:canvas.width/2,y:canvas.height-42},items=[],score=0,best=0,running=false,over=false,keys={left:false,right:false},last=0,spawn=0;
+ let player={x:0},items=[],score=0,best=0,running=false,over=false,keys={left:false,right:false},last=0,spawn=0,stars=[];
  try{best=Number(localStorage.getItem('xvxStarBest'))||0}catch(e){}
  bestEl.textContent=best;
- function reset(){player.x=canvas.width/2;items=[];score=0;spawn=0;scoreEl.textContent='0';over=false;running=true;statusEl.textContent='انطلق!';startBtn.textContent='إعادة اللعب';last=0;requestAnimationFrame(loop)}
+ for(let i=0;i<90;i++)stars.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,s:.5+Math.random()*1.8});
+ function reset(){player.x=0;items=[];score=0;spawn=0;scoreEl.textContent='0';over=false;running=true;statusEl.textContent='انطلق!';startBtn.textContent='إعادة اللعب';last=0;requestAnimationFrame(loop)}
+ function polygon(points,fill,stroke){ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);ctx.closePath();ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=2;ctx.stroke()}}
+ function drawShip(){
+  const x=360+player.x*34,y=355;
+  ctx.save();ctx.shadowColor='#00cfff';ctx.shadowBlur=22;
+  polygon([[x,y-39],[x-22,y+20],[x,y+9],[x+22,y+20]],'#b9eaff','#25caff');
+  polygon([[x-12,y+7],[x-37,y+25],[x-17,y+24]],'#1677c9','#50caff');
+  polygon([[x+12,y+7],[x+37,y+25],[x+17,y+24]],'#1677c9','#50caff');
+  const flame=12+Math.random()*12;
+  polygon([[x-9,y+17],[x,y+17+flame],[x+9,y+17]],'#ff9b31','#ffe27a');
+  ctx.shadowBlur=0;ctx.fillStyle='#07264a';ctx.beginPath();ctx.ellipse(x,y-12,7,12,0,0,Math.PI*2);ctx.fill();ctx.restore();
+ }
  function draw(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle='#07172b';for(let i=0;i<38;i++){let x=(i*137)%canvas.width,y=(i*71+performance.now()*.018)%canvas.height;ctx.fillStyle='#235078';ctx.fillRect(x,y,2,2)}
-  ctx.font='30px system-ui';ctx.textAlign='center';ctx.fillText('🚀',player.x,player.y+10);
-  items.forEach(o=>{ctx.font='25px system-ui';ctx.fillText(o.type==='star'?'⭐':'☄️',o.x,o.y)});
-  if(!running){ctx.fillStyle='#dff4ff';ctx.font='bold 25px system-ui';ctx.fillText(over?'انتهت اللعبة!':'صائد النجوم',canvas.width/2,canvas.height/2-8);ctx.font='16px system-ui';ctx.fillText(over?'اضغط إعادة اللعب للمحاولة مرة ثانية':'اضغط ابدأ للعب',canvas.width/2,canvas.height/2+24)}
+  const g=ctx.createLinearGradient(0,0,0,420);g.addColorStop(0,'#06152e');g.addColorStop(1,'#020711');ctx.fillStyle=g;ctx.fillRect(0,0,720,420);
+  stars.forEach(s=>{ctx.fillStyle='rgba(160,220,255,.7)';ctx.fillRect(s.x,s.y,s.s,s.s)});
+  // 3D space runway
+  polygon([[250,105],[470,105],[710,420],[10,420]],'#091c32','#15517b');
+  ctx.strokeStyle='#1677a9';ctx.lineWidth=2;
+  for(let i=0;i<=10;i++){let t=i/10,y=105+t*t*315,w=110+t*250;ctx.beginPath();ctx.moveTo(360-w,y);ctx.lineTo(360+w,y);ctx.stroke()}
+  for(let i=-4;i<=4;i++){ctx.beginPath();ctx.moveTo(360+i*22,105);ctx.lineTo(360+i*85,420);ctx.stroke()}
+  items.forEach(o=>{
+   const d=100-o.z,scale=.25+d*.009,x=360+o.x*scale*55,y=105+d*2.9,size=scale*23;
+   ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
+   if(o.type==='star'){ctx.shadowColor='#ffd84d';ctx.shadowBlur=18;ctx.fillStyle='#ffe36e';ctx.font='bold 28px system-ui';ctx.textAlign='center';ctx.fillText('★',0,8)}
+   else{ctx.shadowColor='#ff4d4d';ctx.shadowBlur=16;ctx.fillStyle='#d94c43';ctx.beginPath();ctx.arc(0,0,15,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffb078';ctx.beginPath();ctx.arc(-5,-5,5,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ff673c';ctx.fillRect(-4,12,8,20)}
+   ctx.restore();
+  });
+  drawShip();
+  if(!running){ctx.fillStyle='#e5f7ff';ctx.textAlign='center';ctx.font='bold 26px system-ui';ctx.fillText(over?'انتهت اللعبة!':'صائد النجوم 3D',360,195);ctx.font='16px system-ui';ctx.fillText(over?'اضغط إعادة اللعب للمحاولة':'اضغط ابدأ للعب',360,225)}
  }
  function loop(t){if(!running){draw();return}let dt=Math.min((t-last)/16||1,2);last=t;
-  if(keys.left)player.x-=5*dt;if(keys.right)player.x+=5*dt;player.x=Math.max(22,Math.min(canvas.width-22,player.x));
-  spawn+=dt;if(spawn>27){spawn=0;items.push({x:24+Math.random()*(canvas.width-48),y:-20,type:Math.random()<.68?'star':'rock',speed:2+Math.random()*1.8+score*.025})}
-  items.forEach(o=>o.y+=o.speed*dt);
-  for(let i=items.length-1;i>=0;i--){let o=items[i];if(Math.abs(o.x-player.x)<27&&Math.abs(o.y-player.y)<27){if(o.type==='star'){score+=1;scoreEl.textContent=score}else{running=false;over=true;statusEl.textContent='اصطدمت! حاول مرة أخرى';if(score>best){best=score;bestEl.textContent=best;try{localStorage.setItem('xvxStarBest',best)}catch(e){}}}items.splice(i,1)}else if(o.y>canvas.height+20)items.splice(i,1)}
+  if(keys.left)player.x-=.12*dt;if(keys.right)player.x+=.12*dt;player.x=Math.max(-4.4,Math.min(4.4,player.x));
+  spawn+=dt;if(spawn>25){spawn=0;items.push({x:-4+Math.random()*8,z:100,type:Math.random()<.7?'star':'rock',speed:1.0+Math.random()*.45+score*.003})}
+  for(let i=items.length-1;i>=0;i--){let o=items[i];o.z-=o.speed*dt;
+   if(o.z<5&&Math.abs(o.x-player.x)<.9){if(o.type==='star'){score++;scoreEl.textContent=score}else{running=false;over=true;statusEl.textContent='اصطدمت! حاول مرة أخرى';if(score>best){best=score;bestEl.textContent=best;try{localStorage.setItem('xvxStarBest',best)}catch(e){}}}items.splice(i,1)}
+   else if(o.z<0)items.splice(i,1);
+  }
+  stars.forEach(s=>{s.y+=.7*dt;if(s.y>420){s.y=0;s.x=Math.random()*720}});
   draw();if(running)requestAnimationFrame(loop)
  }
  function hold(id,dir){let b=document.getElementById(id);b.addEventListener('pointerdown',e=>{e.preventDefault();keys[dir]=true});['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>keys[dir]=false))}
