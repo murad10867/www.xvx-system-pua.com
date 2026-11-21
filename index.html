@@ -22,6 +22,14 @@
     .banner{border:1px solid #1c4a79;border-radius:22px;padding:32px;background:linear-gradient(110deg,#0c1b30,#07101d);display:flex;align-items:center;justify-content:space-between;gap:24px}.banner h2{margin:0 0 5px}.banner p{margin:0;color:var(--muted)}
     footer{border-top:1px solid #173452;padding:28px 0;color:var(--muted);font-size:.9rem}.foot{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}.ltr{direction:ltr;unicode-bidi:isolate}
     @media(max-width:760px){.nav{height:auto;min-height:72px;flex-wrap:wrap;padding:14px 0}nav{width:100%;justify-content:space-between;gap:10px;font-size:.82rem}.hero{min-height:560px;padding:70px 0}.grid{grid-template-columns:1fr}.about{grid-template-columns:1fr}.orb{min-height:210px}.banner{align-items:flex-start;flex-direction:column}section{padding:58px 0}}
+
+    .game-panel{background:linear-gradient(145deg,#0c1b31,#07101e);border:1px solid #1b4b78;border-radius:22px;padding:20px}
+    .game-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;color:#b9d8f5}
+    #gameCanvas{display:block;width:100%;max-width:720px;height:auto;margin:auto;background:#030914;border:1px solid #16416c;border-radius:14px;touch-action:none}
+    .game-controls{display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
+    .game-controls button{min-width:58px;padding:10px 16px;border:1px solid #1b6ba6;border-radius:12px;background:#0b2b4b;color:white;font-size:1.15rem;font-weight:800;touch-action: manipulation}
+    .game-controls button:active{background:#087dca}.game-help{text-align:center;color:#9fb2ca;font-size:.9rem;margin:12px 0 0}
+
   </style>
 </head>
 <body>
@@ -49,9 +57,55 @@
       <article class="card"><div class="num">03 / UPDATES</div><h3>التحديثات</h3><p>متابعة الجديد وما تتم إضافته إلى مساحة XVX.</p></article>
     </div>
   </div></section>
+
+  <section id="game"><div class="wrap">
+    <div class="section-head"><div class="kicker">XVX ARCADE</div><h2>لعبة صائد النجوم ⭐</h2><p>حرّك المركبة واجمع النجوم الذهبية، وابتعد عن النيازك الحمراء!</p></div>
+    <div class="game-panel">
+      <div class="game-top"><span>النقاط: <strong id="gameScore">0</strong></span><span>أفضل نتيجة: <strong id="gameBest">0</strong></span><span id="gameStatus">جاهز؟ اضغط ابدأ!</span></div>
+      <canvas id="gameCanvas" width="720" height="360" aria-label="لعبة صائد النجوم"></canvas>
+      <div class="game-controls">
+        <button type="button" id="gameLeft" aria-label="يسار">◀</button>
+        <button type="button" id="gameStart">ابدأ اللعبة</button>
+        <button type="button" id="gameRight" aria-label="يمين">▶</button>
+      </div>
+      <p class="game-help">استخدم السهمين ← → أو الأزرار. اجمع ⭐ وتجنب ☄️</p>
+    </div>
+  </div></section>
+
   <section id="lab"><div class="wrap">
     <div class="banner"><div><div class="kicker">XVX LAB</div><h2>جرّب. تعلّم. طوّر.</h2><p>المختبر مساحة للتجارب التقنية والأفكار قيد التطوير.</p></div><a class="btn secondary" href="#home">العودة للأعلى ↑</a></div>
   </div></section>
 </main>
 <footer><div class="wrap foot"><span class="ltr">© 2026 XVX System PUA</span><span class="ltr">www.xvx-system-pua.com</span></div></footer>
+
+<script>
+(()=>{
+ const canvas=document.getElementById('gameCanvas'),ctx=canvas.getContext('2d');
+ const scoreEl=document.getElementById('gameScore'),bestEl=document.getElementById('gameBest'),statusEl=document.getElementById('gameStatus'),startBtn=document.getElementById('gameStart');
+ let player={x:canvas.width/2,y:canvas.height-42},items=[],score=0,best=0,running=false,over=false,keys={left:false,right:false},last=0,spawn=0;
+ try{best=Number(localStorage.getItem('xvxStarBest'))||0}catch(e){}
+ bestEl.textContent=best;
+ function reset(){player.x=canvas.width/2;items=[];score=0;spawn=0;scoreEl.textContent='0';over=false;running=true;statusEl.textContent='انطلق!';startBtn.textContent='إعادة اللعب';last=0;requestAnimationFrame(loop)}
+ function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#07172b';for(let i=0;i<38;i++){let x=(i*137)%canvas.width,y=(i*71+performance.now()*.018)%canvas.height;ctx.fillStyle='#235078';ctx.fillRect(x,y,2,2)}
+  ctx.font='30px system-ui';ctx.textAlign='center';ctx.fillText('🚀',player.x,player.y+10);
+  items.forEach(o=>{ctx.font='25px system-ui';ctx.fillText(o.type==='star'?'⭐':'☄️',o.x,o.y)});
+  if(!running){ctx.fillStyle='#dff4ff';ctx.font='bold 25px system-ui';ctx.fillText(over?'انتهت اللعبة!':'صائد النجوم',canvas.width/2,canvas.height/2-8);ctx.font='16px system-ui';ctx.fillText(over?'اضغط إعادة اللعب للمحاولة مرة ثانية':'اضغط ابدأ للعب',canvas.width/2,canvas.height/2+24)}
+ }
+ function loop(t){if(!running){draw();return}let dt=Math.min((t-last)/16||1,2);last=t;
+  if(keys.left)player.x-=5*dt;if(keys.right)player.x+=5*dt;player.x=Math.max(22,Math.min(canvas.width-22,player.x));
+  spawn+=dt;if(spawn>27){spawn=0;items.push({x:24+Math.random()*(canvas.width-48),y:-20,type:Math.random()<.68?'star':'rock',speed:2+Math.random()*1.8+score*.025})}
+  items.forEach(o=>o.y+=o.speed*dt);
+  for(let i=items.length-1;i>=0;i--){let o=items[i];if(Math.abs(o.x-player.x)<27&&Math.abs(o.y-player.y)<27){if(o.type==='star'){score+=1;scoreEl.textContent=score}else{running=false;over=true;statusEl.textContent='اصطدمت! حاول مرة أخرى';if(score>best){best=score;bestEl.textContent=best;try{localStorage.setItem('xvxStarBest',best)}catch(e){}}}items.splice(i,1)}else if(o.y>canvas.height+20)items.splice(i,1)}
+  draw();if(running)requestAnimationFrame(loop)
+ }
+ function hold(id,dir){let b=document.getElementById(id);b.addEventListener('pointerdown',e=>{e.preventDefault();keys[dir]=true});['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>keys[dir]=false))}
+ hold('gameLeft','left');hold('gameRight','right');
+ addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();if(e.key==='ArrowLeft')keys.left=true;if(e.key==='ArrowRight')keys.right=true});
+ addEventListener('keyup',e=>{if(e.key==='ArrowLeft')keys.left=false;if(e.key==='ArrowRight')keys.right=false});
+ startBtn.addEventListener('click',reset);draw();
+})();
+</script>
+
 </body></html>
