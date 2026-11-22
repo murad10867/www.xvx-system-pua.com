@@ -80,7 +80,7 @@
     <div class="game-panel">
       <div class="game-top"><span>المسافة: <strong id="cityScore">0</strong> م</span><span>السيارات المحطمة: <strong id="cityHits">0</strong></span><span id="cityStatus">جاهز للانطلاق؟</span></div>
       <canvas id="cityCanvas" width="800" height="460" aria-label="لعبة قيادة وتحطيم السيارات في المدينة"></canvas>
-      <div class="game-controls"><button type="button" id="cityLeft">◀</button><button type="button" id="cityStart">ابدأ القيادة</button><button type="button" id="cityRight">▶</button></div>
+      <div class="game-controls"><button type="button" id="cityLeft">◀</button><button type="button" id="cityStart">ابدأ القيادة</button><button type="button" id="cityRepair">🔧 إصلاح السيارة</button><button type="button" id="cityRight">▶</button></div>
       <p class="game-help">استخدم ← → أو الأزرار للتحرك. اصطدم بالسيارات لتحطيمها! اضغط مسافة للفرامل.</p>
     </div>
   </div></section>
@@ -184,13 +184,21 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
  const roof=new THREE.Mesh(new THREE.BoxGeometry(1.28,.12,1.3),paint);roof.position.set(0,1.79,-.28);g.add(roof);
  for(const xx of [-.96,.96])for(const zz of [-1.12,1.12]){const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.37,.37,.22,18),carMats.rubber);wheel.rotation.z=Math.PI/2;wheel.position.set(xx,.43,zz);g.add(wheel);const hub=new THREE.Mesh(new THREE.CylinderGeometry(.16,.16,.235,12),carMats.trim);hub.rotation.z=Math.PI/2;hub.position.copy(wheel.position);g.add(hub)}
  for(const xx of [-.58,.58]){const head=new THREE.Mesh(new THREE.BoxGeometry(.35,.17,.08),mat(0xfff2c4,.2));head.position.set(xx,.83,1.79);g.add(head);const tail=new THREE.Mesh(new THREE.BoxGeometry(.35,.16,.08),mat(0xff3434));tail.position.set(xx,.82,-1.79);g.add(tail)}
- const bumper=new THREE.Mesh(new THREE.BoxGeometry(1.8,.18,.16),carMats.trim);bumper.position.set(0,.52,1.78);g.add(bumper);scene.add(g);return g}
+ const bumper=new THREE.Mesh(new THREE.BoxGeometry(1.8,.18,.16),carMats.trim);bumper.position.set(0,.52,1.78);g.add(bumper);
+ const rearBumper=new THREE.Mesh(new THREE.BoxGeometry(1.8,.18,.16),carMats.trim);rearBumper.position.set(0,.52,-1.78);g.add(rearBumper);
+ const doors=[];
+ for(const side of [-1,1]){const door=new THREE.Mesh(new THREE.BoxGeometry(.12,.58,1.15),paint);door.position.set(side*.91,.91,-.2);door.castShadow=true;g.add(door);doors.push(door)}
+ g.userData.detachable=[bumper,rearBumper,hood,...doors].map((mesh,index)=>({mesh,type:index<2?'bumper':index===2?'hood':'door',detached:false,position:mesh.position.clone(),rotation:mesh.rotation.clone(),scale:mesh.scale.clone()}));
+ scene.add(g);return g}
  const player=makeCar(0x087fe0);player.position.set(0,0,5);
  const traffic=[];const colors=[0xe84d4d,0xf2b53f,0x8c70d9,0x36ae78,0xe5e8ed,0x253d55];
- let lane=1,score=0,hits=0,running=false,last=0,spawn=0,speed=24,brake=false,particles=[];
- function reset(){traffic.forEach(o=>scene.remove(o.mesh));traffic.length=0;particles.forEach(p=>scene.remove(p.mesh));particles=[];lane=1;score=0;hits=0;speed=24;spawn=0;scoreEl.textContent='0';hitsEl.textContent='0';status.textContent='انطلق في المدينة الساحلية!';btn.textContent='إعادة اللعب';running=true;last=0;requestAnimationFrame(loop)}
+ let lane=1,score=0,hits=0,running=false,last=0,spawn=0,speed=24,brake=false,particles=[],looseParts=[];
+ function restoreVehicleParts(vehicle){if(!vehicle?.userData?.detachable)return;for(const part of vehicle.userData.detachable){if(part.detached){scene.remove(part.mesh);vehicle.add(part.mesh);part.mesh.position.copy(part.position);part.mesh.rotation.copy(part.rotation);part.mesh.scale.copy(part.scale);part.detached=false}}}
+ function repairPlayer(){restoreVehicleParts(player);looseParts=looseParts.filter(p=>{if(p.owner===player){scene.remove(p.mesh);return false}return true});status.textContent='تم إصلاح السيارة وإعادة القطع!'}
+ function detachVehicleParts(vehicle,power,impactSide='front'){const parts=vehicle.userData.detachable||[];for(const part of parts){if(part.detached)continue;const shouldDetach=(part.type==='bumper'&&power>12)|| (part.type==='hood'&&power>20&&impactSide==='front') || (part.type==='door'&&power>22&&impactSide==='side');if(!shouldDetach)continue;part.detached=true;const world=part.mesh.getWorldPosition(new THREE.Vector3());scene.attach(part.mesh);part.mesh.position.copy(world);const sign=vehicle===player?1:-1;const velocity=new THREE.Vector3((Math.random()-.5)*5+(impactSide==='side'?(Math.random()-.5)*8:0),3+Math.random()*4,sign*(4+Math.random()*5));const spin=new THREE.Vector3(Math.random()*7,Math.random()*7,Math.random()*7);part.mesh.userData.velocity=velocity;part.mesh.userData.spin=spin;looseParts.push({mesh:part.mesh,velocity,spin,owner:vehicle,life:12})}}
+ function reset(){restoreVehicleParts(player);looseParts.forEach(p=>scene.remove(p.mesh));looseParts=[];traffic.forEach(o=>scene.remove(o.mesh));traffic.length=0;particles.forEach(p=>scene.remove(p.mesh));particles=[];lane=1;score=0;hits=0;speed=24;spawn=0;scoreEl.textContent='0';hitsEl.textContent='0';status.textContent='انطلق في المدينة الساحلية!';btn.textContent='إعادة اللعب';running=true;last=0;requestAnimationFrame(loop)}
  function spawnCar(){const l=[-3.2,0,3.2][Math.floor(Math.random()*3)],mesh=makeCar(colors[Math.floor(Math.random()*colors.length)]);mesh.position.set(l,0,-125);traffic.push({mesh,hit:false})}
- function crash(o){o.hit=true;hits++;hitsEl.textContent=hits;status.textContent='💥 اصطدام!';o.mesh.rotation.z=(Math.random()-.5)*.55;o.mesh.rotation.y=(Math.random()-.5)*.35;
+ function crash(o){o.hit=true;hits++;hitsEl.textContent=hits;status.textContent='💥 اصطدام! أجزاء السيارة تتطاير';const sideImpact=Math.abs(o.mesh.position.x-player.position.x)>1.0;detachVehicleParts(player,v,sideImpact?'side':'front');detachVehicleParts(o.mesh,v,sideImpact?'side':'front');o.mesh.rotation.z=(Math.random()-.5)*.55;o.mesh.rotation.y=(Math.random()-.5)*.35;
  for(let j=0;j<24;j++){const mesh=new THREE.Mesh(new THREE.BoxGeometry(.12+Math.random()*.28,.08+Math.random()*.2,.12+Math.random()*.25),mat([0xffa52f,0xffe3a0,0x202a32,0x7fd8ef][j%4],.4));mesh.position.copy(o.mesh.position);mesh.position.y+=.7;scene.add(mesh);particles.push({mesh,v:new THREE.Vector3((Math.random()-.5)*13,3+Math.random()*8,(Math.random()-.5)*12),life:1.1})}
  const smoke=new THREE.Mesh(new THREE.SphereGeometry(.8,8,8),new THREE.MeshBasicMaterial({color:0x555b60,transparent:true,opacity:.65}));smoke.position.set(o.mesh.position.x,1.3,o.mesh.position.z);scene.add(smoke);particles.push({mesh:smoke,v:new THREE.Vector3(0,2,0),life:.65,smoke:true})}
  function loop(t){if(!running){renderer.render(scene,camera);return}const dt=Math.min((t-last)/1000||.016,.05);last=t;
@@ -199,6 +207,8 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
  spawn+=dt;if(spawn>1.25){spawn=0;spawnCar()}
  for(let i=traffic.length-1;i>=0;i--){const o=traffic[i];o.mesh.position.z+=v*dt*1.12;if(!o.hit&&Math.abs(o.mesh.position.z-player.position.z)<2.45&&Math.abs(o.mesh.position.x-player.position.x)<1.55)crash(o);if(o.mesh.position.z>23){scene.remove(o.mesh);traffic.splice(i,1)}}
  particles.forEach(p=>{p.life-=dt;p.mesh.position.addScaledVector(p.v,dt);p.v.y-=12*dt;if(p.smoke){p.mesh.scale.multiplyScalar(1+dt*1.2);p.mesh.material.opacity=Math.max(0,p.life)}else p.mesh.rotation.x+=dt*5});
+ looseParts.forEach(p=>{p.life-=dt;p.velocity.y-=9.8*dt;p.mesh.position.addScaledVector(p.velocity,dt);p.mesh.rotation.x+=p.spin.x*dt;p.mesh.rotation.y+=p.spin.y*dt;p.mesh.rotation.z+=p.spin.z*dt;if(p.mesh.position.y<.13){p.mesh.position.y=.13;p.velocity.y=Math.abs(p.velocity.y)*.28;p.velocity.x*=.72;p.velocity.z*=.72;p.spin.multiplyScalar(.82)}});
+ looseParts=looseParts.filter(p=>{if(p.life<=0){scene.remove(p.mesh);return false}return true});
  particles=particles.filter(p=>{if(p.life<=0){scene.remove(p.mesh);return false}return true});
  laneMarks.forEach(m=>{m.position.z+=v*dt;if(m.position.z>22)m.position.z-=288});
  buildings.forEach(b=>{b.position.z+=v*dt*.62;if(b.position.z>25)b.position.z-=266});
@@ -207,7 +217,7 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
  renderer.render(scene,camera);requestAnimationFrame(loop)}
  function move(d){lane=Math.max(0,Math.min(2,lane+d))}
  const left=document.getElementById('cityLeft'),right=document.getElementById('cityRight');
- left.addEventListener('click',()=>move(-1));right.addEventListener('click',()=>move(1));
+ left.addEventListener('click',()=>move(-1));right.addEventListener('click',()=>move(1));document.getElementById('cityRepair').addEventListener('click',repairPlayer);
  let touchX=null;canvas.addEventListener('touchstart',e=>{touchX=e.touches[0].clientX},{passive:true});canvas.addEventListener('touchend',e=>{if(touchX===null)return;const dx=e.changedTouches[0].clientX-touchX;if(Math.abs(dx)>25)move(dx>0?1:-1);touchX=null},{passive:true});
  addEventListener('keydown',e=>{if(e.key==='ArrowLeft'){move(-1);e.preventDefault()}if(e.key==='ArrowRight'){move(1);e.preventDefault()}if(e.code==='Space'){brake=true;e.preventDefault()}});
  addEventListener('keyup',e=>{if(e.code==='Space')brake=false});btn.addEventListener('click',reset);
